@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Team Daily Performance & Task Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .editable-hover:hover {
+            background-color: rgba(59, 130, 246, 0.08);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white font-bold">
+                    <i class="fa-solid fa-clipboard-check text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">AuditPulse Live Dashboard</h1>
+                    <p class="text-xs text-slate-400">Real-Time Audit Task & Performance Tracker</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- View Switcher -->
+                <div class="bg-slate-800 p-1 rounded-lg flex border border-slate-700">
+                    <button id="btnBossView" onclick="switchView('boss')" class="px-3 py-1.5 text-xs font-semibold rounded-md transition bg-blue-600 text-white shadow">
+                        <i class="fa-solid fa-chart-line mr-1"></i> Boss View
+                    </button>
+                    <button id="btnEmployeeView" onclick="switchView('employee')" class="px-3 py-1.5 text-xs font-semibold rounded-md transition text-slate-300 hover:text-white">
+                        <i class="fa-solid fa-user-check mr-1"></i> Auditor Portal
+                    </button>
+                </div>
+
+                <!-- Action Controls -->
+                <button onclick="simulateMidnightRollover()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-xs font-medium shadow transition flex items-center gap-1.5" title="Push incomplete tasks to today">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Run Rollover
+                </button>
+                <button onclick="openTeamModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-users-gear"></i> Team Roster
+                </button>
+                <button onclick="openTaskModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-medium shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> New Task
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+
+        <!-- ================= BOSS VIEW ================= -->
+        <div id="bossViewContainer" class="space-y-6">
+            <!-- Executive KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Audit Tasks</p>
+                        <h3 id="kpiTotalTasks" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                    </div>
+                    <div class="bg-blue-50 text-blue-600 p-3 rounded-lg"><i class="fa-solid fa-list-check text-lg"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Completion Rate</p>
+                        <h3 id="kpiCompletionRate" class="text-2xl font-bold text-emerald-600 mt-1">0%</h3>
+                    </div>
+                    <div class="bg-emerald-50 text-emerald-600 p-3 rounded-lg"><i class="fa-solid fa-circle-check text-lg"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Carried Over Tasks</p>
+                        <h3 id="kpiRolloverCount" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                    </div>
+                    <div class="bg-amber-50 text-amber-600 p-3 rounded-lg"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Team</p>
+                        <h3 id="kpiActiveAuditors" class="text-2xl font-bold text-indigo-600 mt-1">0</h3>
+                    </div>
+                    <div class="bg-indigo-50 text-indigo-600 p-3 rounded-lg"><i class="fa-solid fa-users text-lg"></i></div>
+                </div>
+            </div>
+
+            <!-- Visual Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-bar text-blue-600"></i> Auditor Workload & Completion Progress
+                    </h3>
+                    <div class="h-64 relative"><canvas id="auditorPerformanceChart"></canvas></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-pie-chart text-indigo-600"></i> Task Status Distribution
+                    </h3>
+                    <div class="h-64 relative flex items-center justify-center"><canvas id="statusDistributionChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Boss Task Master Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-table-cells text-slate-700"></i> Master Audit Task Control Table
+                    </h3>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <input type="text" id="bossSearch" oninput="renderDashboard()" placeholder="Search task or auditor..." class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="bossFilterStatus" onchange="renderDashboard()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Statuses</option>
+                            <option value="Not Started">Not Started</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Complete">Complete</option>
+                            <option value="Rolled Over">Rolled Over</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px] tracking-wider">
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Audit Area</th>
+                                <th class="p-3">Assigned Auditor</th>
+                                <th class="p-3">Task Description</th>
+                                <th class="p-3">Priority</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Rollovers</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bossTaskTableBody" class="divide-y divide-slate-200 text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= EMPLOYEE VIEW ================= -->
+        <div id="employeeViewContainer" class="space-y-6 hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-md flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold">Auditor Entry Portal</h2>
+                    <p class="text-xs text-blue-100 mt-1">Select your profile below to view and update your assigned daily tasks instantly.</p>
+                </div>
+                <div class="flex items-center gap-3 bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
+                    <label for="currentAuditorSelect" class="text-xs font-medium text-white">Viewing as:</label>
+                    <select id="currentAuditorSelect" onchange="renderDashboard()" class="bg-white text-slate-800 text-xs font-semibold rounded-md px-3 py-1.5 focus:outline-none"></select>
+                </div>
+            </div>
+
+            <!-- Employee Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="employeeTaskCardsContainer"></div>
+        </div>
+    </main>
+
+    <!-- Create/Edit Task Modal -->
+    <div id="taskModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-5 py-4 flex justify-between items-center">
+                <h3 id="taskModalTitle" class="text-sm font-bold">Create New Audit Task</h3>
+                <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="taskForm" onsubmit="handleTaskFormSubmit(event)" class="p-5 space-y-4 text-xs">
+                <input type="hidden" id="taskId">
+                <div><label class="block font-medium text-slate-700 mb-1">Task Date</label><input type="date" id="taskDate" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"></div>
+                <div><label class="block font-medium text-slate-700 mb-1">Audit Area / Section</label><input type="text" id="taskAuditArea" placeholder="e.g., Cash Verification" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block font-medium text-slate-700 mb-1">Assigned Auditor</label><select id="taskAuditor" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"></select></div>
+                    <div><label class="block font-medium text-slate-700 mb-1">Priority</label><select id="taskPriority" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"><option value="High">🔴 High</option><option value="Medium">🟡 Medium</option><option value="Low">🟢 Low</option></select></div>
+                </div>
+                <div><label class="block font-medium text-slate-700 mb-1">Description & Requirements</label><textarea id="taskDescription" rows="3" required class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block font-medium text-slate-700 mb-1">Status</label><select id="taskStatus" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"><option value="Not Started">Not Started</option><option value="In Progress">In Progress</option><option value="Complete">Complete</option><option value="Rolled Over">Rolled Over</option></select></div>
+                    <div><label class="block font-medium text-slate-700 mb-1">Auditor Notes</label><input type="text" id="taskNotes" placeholder="Remarks..." class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"></div>
+                </div>
+                <div class="pt-3 flex justify-end gap-2 border-t border-slate-200">
+                    <button type="button" onclick="closeTaskModal()" class="px-4 py-2 border rounded-lg text-slate-700 hover:bg-slate-100">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 shadow">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Team Roster Modal -->
+    <div id="teamModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+            <div class="bg-slate-900 text-white px-5 py-4 flex justify-between items-center">
+                <h3 class="text-sm font-bold">Manage Audit Team Roster</h3>
+                <button onclick="closeTeamModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-5 space-y-4 text-xs">
+                <div class="flex gap-2">
+                    <input type="text" id="newTeamMemberName" placeholder="Enter auditor full name..." class="flex-grow border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="addTeamMember()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-500">Add</button>
+                </div>
+                <div class="border rounded-lg overflow-hidden max-h-60 overflow-y-auto">
+                    <table class="w-full text-left border-collapse"><tbody id="teamRosterTableBody" class="divide-y divide-slate-200"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Engine Script -->
+    <script>
+        function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+
+        let state = {
+            view: 'boss',
+            tasks: JSON.parse(localStorage.getItem('audit_tasks')) || [
+                { id: 't1', date: getTodayStr(), auditArea: 'Cash & Bank', auditor: 'Aarav Sharma', description: 'Verify bank reconciliation statements for Q2.', priority: 'High', status: 'In Progress', rolloverCount: 0, notes: 'Pending confirmation from SBI.' },
+                { id: 't2', date: getTodayStr(), auditArea: 'Fixed Assets', auditor: 'Priya Verma', description: 'Physical verification of plant & machinery additions.', priority: 'Medium', status: 'Complete', rolloverCount: 0, notes: 'Verified invoices.' },
+                { id: 't3', date: getTodayStr(), auditArea: 'Accounts Receivable', auditor: 'Rohan Mehta', description: 'Send balance confirmation letters to top 20 debtors.', priority: 'High', status: 'Rolled Over', rolloverCount: 1, notes: 'Carried over from yesterday.' }
+            ],
+            team: JSON.parse(localStorage.getItem('audit_team')) || ["Aarav Sharma", "Priya Verma", "Rohan Mehta", "Neha Gupta"],
+            charts: { performance: null, distribution: null }
+        };
+
+        function saveData() {
+            localStorage.setItem('audit_tasks', JSON.stringify(state.tasks));
+            localStorage.setItem('audit_team', JSON.stringify(state.team));
+            renderDashboard();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateDropdowns();
+            renderDashboard();
+        });
+
+        function switchView(viewName) {
+            state.view = viewName;
+            document.getElementById('bossViewContainer').classList.toggle('hidden', viewName !== 'boss');
+            document.getElementById('employeeViewContainer').classList.toggle('hidden', viewName !== 'employee');
+            document.getElementById('btnBossView').className = viewName === 'boss' ? "px-3 py-1.5 text-xs font-semibold rounded-md transition bg-blue-600 text-white shadow" : "px-3 py-1.5 text-xs font-semibold rounded-md transition text-slate-300 hover:text-white";
+            document.getElementById('btnEmployeeView').className = viewName === 'employee' ? "px-3 py-1.5 text-xs font-semibold rounded-md transition bg-blue-600 text-white shadow" : "px-3 py-1.5 text-xs font-semibold rounded-md transition text-slate-300 hover:text-white";
+            renderDashboard();
+        }
+
+        function updateDropdowns() {
+            [document.getElementById('taskAuditor'), document.getElementById('currentAuditorSelect')].forEach(select => {
+                if (!select) return;
+                const val = select.value;
+                select.innerHTML = '';
+                state.team.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m; opt.textContent = m;
+                    select.appendChild(opt);
+                });
+                if (state.team.includes(val)) select.value = val;
+            });
+        }
+
+        function renderDashboard() {
+            updateKPIs();
+            renderBossTable();
+            renderEmployeeCards();
+            renderCharts();
+        }
+
+        function updateKPIs() {
+            const total = state.tasks.length;
+            const completed = state.tasks.filter(t => t.status === 'Complete').length;
+            const rollovers = state.tasks.reduce((acc, t) => acc + (t.rolloverCount || 0), 0);
+            document.getElementById('kpiTotalTasks').textContent = total;
+            document.getElementById('kpiCompletionRate').textContent = (total > 0 ? Math.round((completed / total) * 100) : 0) + '%';
+            document.getElementById('kpiRolloverCount').textContent = rollovers;
+            document.getElementById('kpiActiveAuditors').textContent = state.team.length;
+        }
+
+        function renderBossTable() {
+            const tbody = document.getElementById('bossTaskTableBody');
+            tbody.innerHTML = '';
+            const search = document.getElementById('bossSearch').value.toLowerCase();
+            const filterStatus = document.getElementById('bossFilterStatus').value;
+
+            const filtered = state.tasks.filter(t => (t.auditArea.toLowerCase().includes(search) || t.auditor.toLowerCase().includes(search) || t.description.toLowerCase().includes(search)) && (!filterStatus || t.status === filterStatus));
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">No tasks match criteria.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                
+                let badgeColor = "bg-slate-100 text-slate-700";
+                if (t.status === 'Complete') badgeColor = "bg-emerald-100 text-emerald-700";
+                if (t.status === 'In Progress') badgeColor = "bg-blue-100 text-blue-700";
+                if (t.status === 'Rolled Over') badgeColor = "bg-amber-100 text-amber-700";
+
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-500">${t.date}</td>
+                    <td class="p-3 font-semibold text-slate-800 editable-hover" onclick="openTaskModal('${t.id}')">${t.auditArea}</td>
+                    <td class="p-3">
+                        <select onchange="updateTaskAuditor('${t.id}', this.value)" class="text-xs bg-slate-50 border border-slate-200 rounded p-1">
+                            ${state.team.map(m => `<option value="${m}" ${m === t.auditor ? 'selected' : ''}>${m}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="p-3 text-slate-600 max-w-xs truncate">${t.description}</td>
+                    <td class="p-3 font-bold ${t.priority === 'High' ? 'text-rose-600' : 'text-amber-600'}">${t.priority || 'Medium'}</td>
+                    <td class="p-3"><span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeColor}">${t.status}</span></td>
+                    <td class="p-3 font-semibold text-amber-600">${t.rolloverCount || 0}</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="openTaskModal('${t.id}')" class="text-blue-600 hover:text-blue-800"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteTask('${t.id}')" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderEmployeeCards() {
+            const container = document.getElementById('employeeTaskCardsContainer');
+            container.innerHTML = '';
+            const currentAuditor = document.getElementById('currentAuditorSelect').value;
+            const myTasks = state.tasks.filter(t => t.auditor === currentAuditor);
+
+            if (myTasks.length === 0) {
+                container.innerHTML = `<div class="col-span-full bg-white p-8 rounded-xl text-center border text-slate-400">No tasks assigned to ${currentAuditor}.</div>`;
+                return;
+            }
+
+            myTasks.forEach(t => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start gap-2 mb-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-blue-50 text-blue-700 rounded">${t.auditArea}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${t.status === 'Complete' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}">${t.status}</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-900">${t.description}</h4>
+                        <p class="text-[11px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> Target Date: ${t.date} ${t.rolloverCount > 0 ? `(Carried over ${t.rolloverCount}x)` : ''}</p>
+                    </div>
+                    <div class="space-y-3 pt-3 border-t border-slate-100 text-xs">
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Update Status:</label>
+                            <select onchange="updateTaskStatus('${t.id}', this.value)" class="w-full border rounded-lg p-2 bg-slate-50 font-medium">
+                                <option value="Not Started" ${t.status === 'Not Started' ? 'selected' : ''}>Not Started</option>
+                                <option value="In Progress" ${t.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="Complete" ${t.status === 'Complete' ? 'selected' : ''}>Complete 🟢</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Auditor Notes / Remarks:</label>
+                            <input type="text" value="${t.notes || ''}" onchange="updateTaskNotes('${t.id}', this.value)" placeholder="Add notes..." class="w-full border rounded-lg p-2">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderCharts() {
+            const counts = {};
+            state.team.forEach(m => counts[m] = { complete: 0, pending: 0 });
+            state.tasks.forEach(t => { if (counts[t.auditor]) { if (t.status === 'Complete') counts[t.auditor].complete++; else counts[t.auditor].pending++; } });
+
+            if (state.charts.performance) state.charts.performance.destroy();
+            state.charts.performance = new Chart(document.getElementById('auditorPerformanceChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: state.team, datasets: [{ label: 'Completed', data: state.team.map(m => counts[m].complete), backgroundColor: '#10b981' }, { label: 'Pending', data: state.team.map(m => counts[m].pending), backgroundColor: '#3b82f6' }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+
+            const statusCounts = { 'Complete': 0, 'In Progress': 0, 'Not Started': 0, 'Rolled Over': 0 };
+            state.tasks.forEach(t => { if (statusCounts[t.status] !== undefined) statusCounts[t.status]++; });
+
+            if (state.charts.distribution) state.charts.distribution.destroy();
+            state.charts.distribution = new Chart(document.getElementById('statusDistributionChart').getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#10b981', '#3b82f6', '#94a3b8', '#f59e0b'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function simulateMidnightRollover() {
+            let count = 0;
+            const todayStr = getTodayStr();
+            state.tasks.forEach(t => {
+                if (t.status !== 'Complete') {
+                    t.date = todayStr;
+                    t.status = 'Rolled Over';
+                    t.rolloverCount = (t.rolloverCount || 0) + 1;
+                    count++;
+                }
+            });
+            saveData();
+            alert(`Rollover execution complete! ${count} incomplete tasks were carried over to today.`);
+        }
+
+        function updateTaskStatus(id, s) { const t = state.tasks.find(x => x.id === id); if (t) { t.status = s; saveData(); } }
+        function updateTaskNotes(id, n) { const t = state.tasks.find(x => x.id === id); if (t) { t.notes = n; saveData(); } }
+        function updateTaskAuditor(id, a) { const t = state.tasks.find(x => x.id === id); if (t) { t.auditor = a; saveData(); } }
+        function deleteTask(id) { if (confirm("Delete task?")) { state.tasks = state.tasks.filter(x => x.id !== id); saveData(); } }
+
+        function openTaskModal(id = null) {
+            updateDropdowns();
+            document.getElementById('taskForm').reset();
+            document.getElementById('taskModalTitle').textContent = id ? "Edit Audit Task" : "Create New Audit Task";
+            if (id) {
+                const t = state.tasks.find(x => x.id === id);
+                document.getElementById('taskId').value = t.id;
+                document.getElementById('taskDate').value = t.date;
+                document.getElementById('taskAuditArea').value = t.auditArea;
+                document.getElementById('taskAuditor').value = t.auditor;
+                document.getElementById('taskPriority').value = t.priority;
+                document.getElementById('taskDescription').value = t.description;
+                document.getElementById('taskStatus').value = t.status;
+                document.getElementById('taskNotes').value = t.notes || '';
+            } else {
+                document.getElementById('taskDate').value = getTodayStr();
+            }
+            document.getElementById('taskModal').classList.remove('hidden');
+        }
+
+        function closeTaskModal() { document.getElementById('taskModal').classList.add('hidden'); }
+
+        function handleTaskFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('taskId').value || 't_' + Date.now();
+            const task = {
+                id,
+                date: document.getElementById('taskDate').value,
+                auditArea: document.getElementById('taskAuditArea').value,
+                auditor: document.getElementById('taskAuditor').value,
+                priority: document.getElementById('taskPriority').value,
+                description: document.getElementById('taskDescription').value,
+                status: document.getElementById('taskStatus').value,
+                notes: document.getElementById('taskNotes').value,
+                rolloverCount: 0
+            };
+            const idx = state.tasks.findIndex(x => x.id === id);
+            if (idx >= 0) { task.rolloverCount = state.tasks[idx].rolloverCount; state.tasks[idx] = task; }
+            else { state.tasks.push(task); }
+            saveData();
+            closeTaskModal();
+        }
+
+        function openTeamModal() { renderTeamTable(); document.getElementById('teamModal').classList.remove('hidden'); }
+        function closeTeamModal() { document.getElementById('teamModal').classList.add('hidden'); }
+        
+        function renderTeamTable() {
+            const tbody = document.getElementById('teamRosterTableBody');
+            tbody.innerHTML = '';
+            state.team.forEach((m, i) => {
+                tbody.innerHTML += `<tr><td class="p-2.5 font-medium text-slate-800">${m}</td><td class="p-2.5 text-right"><button onclick="removeTeamMember(${i})" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            });
+        }
+
+        function addTeamMember() {
+            const input = document.getElementById('newTeamMemberName');
+            if (input.value.trim() && !state.team.includes(input.value.trim())) {
+                state.team.push(input.value.trim());
+                input.value = '';
+                saveData();
+                renderTeamTable();
+            }
+        }
+
+        function removeTeamMember(i) {
+            if (state.team.length <= 1) { alert("You must keep at least one auditor."); return; }
+            state.team.splice(i, 1);
+            saveData();
+            renderTeamTable();
+        }
+    </script>
+</body>
+</html>
